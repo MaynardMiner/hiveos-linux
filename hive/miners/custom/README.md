@@ -48,13 +48,14 @@ The script MUST define 2 variables.
 `$stats` should hold JSON stats data.
 
 Example of `$stats` var:
-```json
+```javascript
 { 
 	"hs": [123, 223.3], //array of hashes
 	"hs_units": "khs", //Optional: units that are uses for hashes array, "hs", "khs", "mhs", ... Default "khs".   
 	"temp": [60, 63], //array of miner temps
 	"fan": [80, 100], //array of miner fans
 	"uptime": 12313232, //seconds elapsed from miner stats
+	"ver": "1.2.3.4-beta", //miner version currently run, parsed from it's api or manifest 
 	"ar": [123, 3], //Optional: acceped, rejected shares 
 	"algo": "customalgo", //Optional: algo used by miner, should one of the exiting in Hive
 	"bus_numbers": [0, 1, 12, 13] //Pci buses array in decimal format. E.g. 0a:00.0 is 10

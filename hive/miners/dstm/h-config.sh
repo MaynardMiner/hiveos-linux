@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 function miner_ver() {
-	echo $MINER_LATEST_VER
+	local MINER_VER=$DSTM_VER
+	[[ -z $MINER_VER ]] && MINER_VER=$MINER_LATEST_VER
+	echo $MINER_VER
 }
 
 
@@ -31,15 +33,6 @@ function miner_config_gen() {
 		[[ ! -z $DSTM_PASS ]] && conf+="pass=$DSTM_PASS"$'\n'
 		conf+=$'\n'
 	done
-
-	#replace tpl values in whole file
-	#Don't remove until Hive 1 is gone
-#	[[ -z $EWAL && -z $ZWAL && -z $DWAL ]] && echo -e "${RED}No WAL address is set${NOCOLOR}"
-	[[ ! -z $EWAL ]] && conf=$(sed "s/%EWAL%/$EWAL/g" <<< "$conf")
-	[[ ! -z $ZWAL ]] && conf=$(sed "s/%ZWAL%/$ZWAL/g" <<< "$conf")
-	[[ ! -z $DWAL ]] && conf=$(sed "s/%DWAL%/$DWAL/g" <<< "$conf")
-	[[ ! -z $EMAIL ]] && conf=$(sed "s/%EMAIL%/$EMAIL/g" <<< "$conf")
-	[[ ! -z $WORKER_NAME ]] && conf=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< "$conf") #|| echo "${RED}WORKER_NAME not set${NOCOLOR}"
 
 	echo "$conf" > $MINER_CONFIG
 }

@@ -10,62 +10,10 @@ function miner_fork() {
 
 
 function miner_ver() {
-  case $MINER_FORK in
-	alexis )
-		echo $MINER_LATEST_VER_ALEXIS
-		;;
-	allium )
-		echo $MINER_LATEST_VER_ALLIUM
-		;;
-	bcd	)
-		echo $MINER_LATEST_VER_BCD
-		;;
-	"dace-cryptonight" )
-		echo $MINER_LATEST_VER_DACE_CRYPTONIGHT
-		;;
-	djm34 )
-		echo $MINER_LATEST_VER_DJM34
-		;;
-	enemy )
-		echo $MINER_LATEST_VER_ENEMY
-		;;
-	klaust )
-		echo $MINER_LATEST_VER_KLAUST
-		;;
-	nanashi )
-		echo $MINER_LATEST_VER_NANASHI
-		;;
-	nevermore )
-		echo $MINER_LATEST_VER_NEVERMORE
-		;;
-	"nevermore-x16s" )
-		echo $MINER_LATEST_VER_NEVERMORE_X16S
-		;;
-	"phi-anxmod" )
-		echo $MINER_LATEST_VER_PHI_ANXMOD
-		;;
-	rvn )
-		echo $MINER_LATEST_VER_RVN
-		;;
-	"sp-mod" )
-		echo $MINER_LATEST_VER_SP_MOD
-		;;
-	suprminer )
-		echo $MINER_LATEST_VER_SUPRMINER
-		;;
-	tpruvot )
-		echo $MINER_LATEST_VER_TPRUVOT
-		;;
-	vertminer )
-		echo $MINER_LATEST_VER_VERTMINER
-		;;
-	xevan )
-		echo $MINER_LATEST_VER_XEVAN
-		;;
-	zp )
-		echo $MINER_LATEST_VER_ZP
-		;;
-  esac
+	local MINER_VER=$CCMINER_VER
+	local fork=${MINER_FORK^^} #uppercase MINER_FORK
+	[[ -z $MINER_VER ]] && eval "MINER_VER=\$MINER_LATEST_VER_${fork//-/_}" #char replace
+	echo $MINER_VER
 }
 
 
@@ -83,16 +31,8 @@ function miner_config_gen() {
 	if [[ -z $CCMINERCONF || $CCMINERCONF = "{}" ]]; then
 		echo -e "${YELLOW}WARNING: No CCMINERCONF set, skipping $MINER_CONFIG generation${NOCOLOR}"
 	else
-		echo $CCMINERCONF | jq . > $MINER_CONFIG
-
 		echo "Generating $MINER_CONFIG"
-
-		#Don't remove until Hive 1 is gone
-		[[ ! -z $EWAL ]] && sed -i --follow-symlinks "s/%EWAL%/$EWAL/g" $MINER_CONFIG #|| echo "EWAL not set"
-		[[ ! -z $ZWAL ]] && sed -i --follow-symlinks "s/%ZWAL%/$ZWAL/g" $MINER_CONFIG #|| echo "ZWAL not set"
-		[[ ! -z $DWAL ]] && sed -i --follow-symlinks "s/%DWAL%/$DWAL/g" $MINER_CONFIG #|| echo "DWAL not set"
-		[[ ! -z $EMAIL ]] && sed -i --follow-symlinks "s/%EMAIL%/$EMAIL/g" $MINER_CONFIG #|| echo "EMAIL not set"
-		[[ ! -z $WORKER_NAME ]] && sed -i --follow-symlinks "s/%WORKER_NAME%/$WORKER_NAME/g" $MINER_CONFIG #||  "WORKER_NAME not set"
+		echo $CCMINERCONF | jq . > $MINER_CONFIG
 	fi
 
 	scratch_path="$HOME/.cache/boolberry"

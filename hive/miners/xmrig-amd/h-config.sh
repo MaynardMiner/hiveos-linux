@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 function miner_ver() {
-	echo $MINER_LATEST_VER
+	local MINER_VER=$XMRIG_AMD_VER
+	[[ -z $MINER_VER ]] && MINER_VER=$MINER_LATEST_VER
+	echo $MINER_VER
 }
 
 
@@ -11,35 +13,19 @@ function miner_config_echo() {
 }
 
 function miner_config_gen() {
-
-  [[ -z $XMRIG_PASS ]] && XMRIG_PASS="x"
+	[[ -z $XMRIG_AMD_PASS ]] && XMRIG_AMD_PASS="x"
 
 	local MINER_CONFIG="$MINER_DIR/$MINER_VER/config.json"
 	mkfile_from_symlink $MINER_CONFIG
 
 	conf=`cat $MINER_DIR/$MINER_VER/config_global.json | envsubst`
 
-		if [[ ! -z ${XMRIG_ALGO} ]]; then
-	algo=${XMRIG_ALGO}
-	#translate CUSTOM_ALGO to a view clear for miner
-	# 	case ${XMRIG_ALGO} in
-	# 		"cryptonight-lite-v7" )
-	# 			algo="cryptonight-lite"
-	# 		;;
-	# 		* )
-	# 		algo=${XMRIG_ALGO}
-	# 		;;
-	# 	esac
-		algo=`jq --null-input --arg algo "$algo" '{$algo}'`
-		conf=$(jq -s '.[0] * .[1]' <<< "$conf $algo")
-	fi
-
 	#merge user config options into main config
-	if [[ ! -z $XMRIG_USER_CONFIG ]]; then
+	if [[ ! -z $XMRIG_AMD_USER_CONFIG ]]; then
 		while read -r line; do
 			[[ -z $line ]] && continue
 				conf=$(jq -s '.[0] * .[1]' <<< "$conf {$line}")
-		done <<< "$XMRIG_USER_CONFIG"
+		done <<< "$XMRIG_AMD_USER_CONFIG"
 	fi
 
 	[[ -z $conf || $conf == '[]' || $conf == 'null' ]] && echo -e "${RED}Error in \"Extra config arguments\" value, check your Miner Config please.${NOCOLOR}" && exit 1
@@ -53,32 +39,22 @@ function miner_config_gen() {
 
 	#merge pools into main config
 	pools='[]'
-	use_tls=$(jq -r .tls <<< "$conf")
-	[[ -z $use_tls || $use_tls == "null" ]] && use_tls="false"
+	tls=$(jq -r .tls <<< "$conf")
+	[[ -z $tls || $tls == "null" ]] && tls="false"
+	tls_fp=$(jq -r '."tls-fingerprint"' <<< "$conf")
+	[[ -z $tls_fp || $tls_fp == "null" ]] && tls_fp="null"
+	variant=$(jq -r '."variant"' <<< "$conf")
+	[[ -z $variant= || $variant= == "null" ]] && variant=-1
+	rig_id=$(jq -r '."rig_id"' <<< "$conf")
+	[[ -z $rig_id= || $rig_id= == "null" ]] && rig_id=""
+	nicehash=$(jq -r .nicehash <<< "$conf")
+	[[ -z $nicehash || $nicehash == "null" ]] && nicehash="false"
 
-	for url in ${XMRIG_URL}; do
-
-		[[ $url = *"//"* ]] && t_pool=$url || t_pool="stratum+tcp://"$url
-		[[ ${url,,} = *"nicehash"* ]] && nicehash='true' || nicehash='false'
-
-		variant=$(jq '.variant' <<< "$conf")
-		if [[ ! ( -z $variant || $variant == '[]' || $variant == 'null' ) ]]; then
-			variant=", \"variant\": $variant"
-			conf=$(jq 'del(.variant)' <<< "$conf") #'
-		else
-			variant=""
-		fi
-
-		rig_id=$(jq '.rig_id' <<< "$conf")
-		if [[ ! ( -z $rig_id || $rig_id == '[]' || $rig_id == 'null' ) ]]; then
-			rig_id=", \"rig_id\": $rig_id"
-			conf=$(jq 'del(.rig_id)' <<< "$conf") #'
-		else
-			rig_id=""
-		fi
+	for url in $XMRIG_AMD_URL; do
+		[[ ${nicehash,,} = "true" || ${url,,} = *"nicehash"* ]] && c_nicehash='true' || c_nicehash='false'
 
 		pool=$(cat <<EOF
-				{"user": "$XMRIG_TEMPLATE", "url": "$t_pool", "pass": "$XMRIG_PASS", "nicehash": $nicehash, "keepalive": true, "tls": $use_tls, "tls-fingerprint": ""${variant}${rig_id}}
+			{"url": "$url", "user": "$XMRIG_AMD_TEMPLATE", "pass": "$XMRIG_AMD_PASS", "rig_id": "$rig_id", "use_nicehash": $c_nicehash, "tls": $tls, "tls-fingerprint": $tls_fp, "variant": "$variant", "keepalive": true }
 EOF
 )
 		pools=`jq --null-input --argjson pools "$pools" --argjson pool "$pool" '$pools + [$pool]'`
@@ -94,23 +70,15 @@ EOF
 	[[ -z $conf || $conf == '[]' || $conf == 'null' ]] && echo -e "${RED}Error in \"Pool URL\" value, check your Miner Config please.${NOCOLOR}" && exit 1
 
 	#merge GPU settings into main config
-	if [[ -z $XMRIG_THREADS || $XMRIG_THREADS == '[]' || $XMRIG_THREADS == 'null' ]]; then
+	if [[ -z $XMRIG_AMD_THREADS || $XMRIG_AMD_THREADS == '[]' || $XMRIG_AMD_THREADS == 'null' ]]; then
 		echo -e "${YELLOW}CUSTOM_GPU_CONFIG is empty, useing autoconfig${NOCOLOR}"
 	else
-		threads=$XMRIG_THREADS
-		threads=`jq --null-input --argjson threads "$threads" '{"threads": $threads}'`
+		threads="{$XMRIG_AMD_THREADS}"
+		threads=`jq --null-input --argjson threads "$threads" '$threads'`
 		conf=$(jq -s '.[0] * .[1]' <<< "$conf $threads")
 	fi
 
 	[[ -z $conf || $conf == '[]' || $conf == 'null' ]] && echo -e "${RED}Error in \"GPU settings\" value, check your Miner Config please.${NOCOLOR}" && exit 1
-
-	#pass can also contain %var%
-	#Don't remove until Hive 1 is gone
-	[[ ! -z $EWAL ]] && conf=$(sed "s/%EWAL%/$EWAL/g" <<< $conf) #|| echo "${RED}EWAL not set${NOCOLOR}"
-	[[ ! -z $DWAL ]] && conf=$(sed "s/%DWAL%/$DWAL/g" <<< $conf) #|| echo "${RED}DWAL not set${NOCOLOR}"
-	[[ ! -z $ZWAL ]] && conf=$(sed "s/%ZWAL%/$ZWAL/g" <<< $conf) #|| echo "${RED}ZWAL not set${NOCOLOR}"
-	[[ ! -z $EMAIL ]] && conf=$(sed "s/%EMAIL%/$EMAIL/g" <<< $conf)
-	[[ ! -z $WORKER_NAME ]] && conf=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< $conf) #|| echo "${RED}WORKER_NAME not set${NOCOLOR}"
 
 	echo $conf | jq . > $MINER_CONFIG
 }

@@ -15,11 +15,10 @@ function miner_fork() {
 
 
 function miner_ver() {
-	if [[ $MINER_FORK == "legacy" ]]; then
-		echo $MINER_LATEST_VER_LEGACY
-	elif [[ $MINER_FORK == "zhash" ]]; then
-		echo $MINER_LATEST_VER_ZHASH
-	fi
+	[[ -z $MINER_FORK ]] && MINER_FORK=`miner_fork`
+	local MINER_VER=$EWBF_VER
+	[[ -z $MINER_VER ]] && eval "MINER_VER=\$MINER_LATEST_VER_${MINER_FORK^^}" #uppercase MINER_FORK
+	echo $MINER_VER
 }
 
 
@@ -55,14 +54,6 @@ function miner_config_gen() {
 	if [[ -z $ZTEMPLATE ]]; then
 		echo -e "${RED}ZTEMPLATE not set{NOCOLOR}"
 	else
-		#Don't remove until Hive 1 is gone
-#		[[ -z $EWAL && -z $ZWAL && -z $DWAL ]] && echo -e "${RED}No WAL address is set${NOCOLOR}"
-		[[ ! -z $EWAL ]] && ZTEMPLATE=${ZTEMPLATE/\%EWAL\%/$EWAL}
-		[[ ! -z $ZWAL ]] && ZTEMPLATE=${ZTEMPLATE/\%ZWAL\%/$ZWAL}
-		[[ ! -z $DWAL ]] && ZTEMPLATE=${ZTEMPLATE/\%DWAL\%/$DWAL}
-		[[ ! -z $EMAIL ]] && ZTEMPLATE=${ZTEMPLATE/\%EMAIL\%/$EMAIL}
-		[[ ! -z $WORKER_NAME ]] && ZTEMPLATE=${ZTEMPLATE/\%WORKER_NAME\%/$WORKER_NAME} || echo -e "${YELLOW}WORKER_NAME not set${NOCOLOR}";
-
 		#escape variable
 		#ZTEMPLATE=$(sed 's/[]\/$*.^|[]/\\&/g' <<<"$ZTEMPLATE")
 		#sed -i --follow-symlinks "s/^user .*/user $ZTEMPLATE/g" $EWBF_CONFIG

@@ -2,7 +2,7 @@
 
 # Not required
 function miner_fork() {
-	local MINER_FORK=$CCMINER_FORK
+	local MINER_FORK=$SGMINER_FORK
 	[[ -z $MINER_FORK ]] && MINER_FORK=$MINER_DEFAULT_FORK
 
 	echo $MINER_FORK
@@ -10,26 +10,10 @@ function miner_fork() {
 
 
 function miner_ver() {
-  case $MINER_FORK in
-		avermore )
-			echo $MINER_LATEST_VER_AVERMORE
-		;;
-		djm34 )
-			echo $MINER_LATEST_VER_DJM34
-		;;
-		gatelessgate )
-			echo $MINER_LATEST_VER_GATELESSGATE
-		;;
-		gm )
-			echo $MINER_LATEST_VER_GM
-		;;
-		"gm-nicehash" )
-			echo $MINER_LATEST_VER_GM_NICEHASH
-		;;
-		phi )
-			echo $MINER_LATEST_VER_PHI
-		;;
-  esac
+	local MINER_VER=$SGMINER_VER
+	local fork=${MINER_FORK^^} #uppercase MINER_FORK
+	[[ -z $MINER_VER ]] && eval "MINER_VER=\$MINER_LATEST_VER_${fork//-/_}" #char replace
+	echo $MINER_VER
 }
 
 
@@ -46,6 +30,8 @@ function miner_config_gen() {
 
 	pools='[]'
 	for url in $SGMINER_URL; do
+		grep -q "://" <<< $url
+		[[ $? -ne 0 ]] && url="stratum+tcp://${url}"
 		pool='{}'
 		pool=`jq --null-input --argjson pool "$pool" --arg user "$SGMINER_TEMPLATE" '$pool + {$user}'`
 		pool=`jq --null-input --argjson pool "$pool" --arg url "$url" '$pool + {$url}'`
@@ -70,14 +56,6 @@ function miner_config_gen() {
 	config_global=`cat $MINER_DIR/$MINER_FORK/$MINER_VER/config_global.json`
 
 	conf=`jq -n --argjson g "$config_global" --argjson p "$pools" '$g * $p'`
-
-	#replace tpl values in whole file
-	#Don't remove until Hive 1 is gone
-	[[ ! -z $EWAL ]] && conf=$(sed "s/%EWAL%/$EWAL/g" <<< "$conf") #|| echo "${RED}EWAL not set${NOCOLOR}"
-	[[ ! -z $DWAL ]] && conf=$(sed "s/%DWAL%/$DWAL/g" <<< "$conf") #|| echo "${RED}DWAL not set${NOCOLOR}"
-	[[ ! -z $ZWAL ]] && conf=$(sed "s/%ZWAL%/$ZWAL/g" <<< "$conf") #|| echo "${RED}ZWAL not set${NOCOLOR}"
-	[[ ! -z $EMAIL ]] && conf=$(sed "s/%EMAIL%/$EMAIL/g" <<< "$conf")
-	[[ ! -z $WORKER_NAME ]] && conf=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< "$conf") #|| echo "${RED}WORKER_NAME not set${NOCOLOR}"
 
 	echo "$conf" | jq . > $MINER_CONFIG
 }

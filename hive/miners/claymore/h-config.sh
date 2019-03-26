@@ -2,19 +2,11 @@
 # This code is included
 
 function claymore_epools_gen() {
-	[[ -z $EPOOLS_TPL || -z $EWAL ]] &&
-		echo -e "${YELLOW}WARNING: EWAL or EPOOLS_TPL is not set, skipping epools.txt generation${NOCOLOR}" &&
+	[[ -z $EPOOLS_TPL ]] &&
+		echo -e "${YELLOW}WARNING: EPOOLS_TPL is not set, skipping epools.txt generation${NOCOLOR}" &&
 		return 1
 
 	echo "Creating epools.txt"
-
-	#Don't remove until Hive 1 is gone
-#	[[ -z $EWAL && -z $ZWAL && -z $DWAL ]] && echo -e "${RED}No WAL address is set${NOCOLOR}"
-	[[ ! -z $EWAL ]] && EPOOLS_TPL=$(sed "s/%EWAL%/$EWAL/g" <<< $EPOOLS_TPL)
-	[[ ! -z $DWAL ]] && EPOOLS_TPL=$(sed "s/%DWAL%/$DWAL/g" <<< $EPOOLS_TPL)
-	[[ ! -z $ZWAL ]] && EPOOLS_TPL=$(sed "s/%ZWAL%/$ZWAL/g" <<< $EPOOLS_TPL)
-	[[ ! -z $EMAIL ]] && EPOOLS_TPL=$(sed "s/%EMAIL%/$EMAIL/g" <<< $EPOOLS_TPL)
-	[[ ! -z $WORKER_NAME ]] && EPOOLS_TPL=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< $EPOOLS_TPL) || echo -e "${RED}WORKER_NAME not set${NOCOLOR}"
 
 	echo "$EPOOLS_TPL" > $CLAYMORE_EPOOLS_TXT
 
@@ -39,11 +31,6 @@ function claymore_dpools_gen() {
 	fi
 
 	echo "Creating dpools.txt"
-
-	[[ ! -z $DWAL ]] && DPOOLS_TPL=$(sed "s/%DWAL%/$DWAL/g" <<< $DPOOLS_TPL)
-	[[ ! -z $EMAIL ]] && DPOOLS_TPL=$(sed "s/%EMAIL%/$EMAIL/g" <<< $DPOOLS_TPL)
-	[[ ! -z $WORKER_NAME ]] && DPOOLS_TPL=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< $DPOOLS_TPL) || echo -e "${YELLOW}WORKER_NAME not set${NOCOLOR}"
-
 	echo "$DPOOLS_TPL" > $CLAYMORE_DPOOLS_TXT
 
 	#Claymore is degrading if no dcoin, but he still uses dcri and eth performance is lower
@@ -95,8 +82,6 @@ function miner_config_echo() {
 
 
 function miner_config_gen() {
-	[[ -z $WORKER_NAME ]] && echo "ERROR: No WORKER_NAME set" && return 1
-
 	CLAYMORE_CONFIG="$MINER_DIR/$MINER_VER/config.txt"
 	CLAYMORE_EPOOLS_TXT="$MINER_DIR/$MINER_VER/epools.txt"
 	CLAYMORE_DPOOLS_TXT="$MINER_DIR/$MINER_VER/dpools.txt"

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 function miner_ver() {
-	echo $MINER_LATEST_VER
+	local MINER_VER=$BMINER_VER
+	[[ -z $MINER_VER ]] && MINER_VER=$MINER_LATEST_VER
+	echo $MINER_VER
 }
 
 function miner_config_echo() {
@@ -9,66 +11,63 @@ function miner_config_echo() {
 	miner_echo_config_file "/hive/miners/$MINER_NAME/$MINER_VER/bminer.conf"
 }
 
-function translate_algo() {
-	case $1 in
-		"ethash" )
-			echo "ethash://"
-		;;
-		"equihash 144/5" )
-			echo "zhash://"
-		;;
-		"blake2s" )
-			echo "blake2s://"
-		;;
-		"blake14r")
-			echo "blake14r://"
-		;;
-		"tensority" )
-			echo "tensority://"
-		;;
-		* )
-			echo "stratum://"
-		;;
-	esac
-}
-
 function miner_config_gen() {
 	local MINER_CONFIG="$MINER_DIR/$MINER_VER/bminer.conf"
 	mkfile_from_symlink $MINER_CONFIG
 
-	conf="-api ${MINER_API_HOST}:${MINER_API_PORT} -max-temperature 82"
+	[[ ! -z $BMINER_ALGO ]] && algo=$BMINER_ALGO || algo="stratum"
+	conf=
+	pool=
 
-	local pool=`head -n 1 <<< "$BMINER_URL"`
-	pool=$(sed 's/\//%2F/g; s/ /%20/g' <<< $pool)
-	[[ `echo $pool | sed 's/@/@\n/g'|grep -c @` -gt 1 ]] && pool=$(sed 's/@/%40/1' <<< $pool)
+	for url in $BMINER_URL; do
+		tpl=$BMINER_TEMPLATE
+		tpl=$(sed 's/\//%2F/g; s/ /%20/g; s/@/%40/g' <<< $tpl)
+		[[ ! -z $BMINER_PASS ]] && tpl+=":$BMINER_PASS"
 
-	grep -q "://" <<< $pool
-	[[ $? -ne 0 ]] && uri=`translate_algo $BMINER_ALGO`${pool}
-	conf+=" -uri $uri"
+		grep -q "://" <<< $url
+		if [[ $? -ne 0 ]]; then
+			url_t="${algo}://${tpl}@${url}"
+		else
+			url_t=$(sed "s/:\/\//:\/\/$tpl@/g" <<< $url) #replace :// with username
+		fi
+
+		[[ ! -z $pool ]] && pool+=","
+		pool+=$url_t
+
+	done
+
+	conf+=" -uri $pool"
 
 	if [[ ! -z $BMINER_URL2 ]]; then
-		local pool=`head -n 1 <<< "$BMINER_URL2"`
-		pool=$(sed 's/\//%2F/g; s/ /%20/g' <<< $pool)
-		[[ `echo $pool | sed 's/@/@\n/g'|grep -c @` -gt 1 ]] && pool=$(sed 's/@/%40/1' <<< $pool)
-		grep -q "://" <<< $pool
-		if [[ $? -ne 0 ]]; then #protocol not found
-			uri=`translate_algo $BMINER_ALGO2`${pool}
-		else
-			uri=$(sed "s/:\/\//:\/\/$tpl@/g; s/@/%40/1" <<< $pool) #replace :// with username
-		fi
-		conf+=" -uri2 $uri"
+		[[ ! -z $BMINER_ALGO2 ]] && algo2=$BMINER_ALGO2 || algo2="blake2s"
+		pool=
+		for url in $BMINER_URL2; do
+		  tpl=$BMINER_TEMPLATE2
+		  tpl=$(sed 's/\//%2F/g; s/ /%20/g; s/@/%40/g' <<< $tpl)
+		  [[ ! -z $BMINER_PASS2 ]] && tpl+=":$BMINER_PASS2"
+
+			grep -q "://" <<< $url
+			if [[ $? -ne 0 ]]; then #protocol not found
+				url_t="${algo2}://${tpl}@${url}"
+			else
+				url_t=$(sed "s/:\/\//:\/\/$tpl@/g" <<< $url) #replace :// with username
+			fi
+
+			[[ ! -z $pool ]] && pool+=","
+			pool+=$url_t
+
+		done
+
+		conf+=" -uri2 $pool"
+
 		[[ ! -z $BMINER_INTENSITY ]] && conf+=" -dual-intensity $BMINER_INTENSITY"
+
 	fi
 
 	[[ ! -z $BMINER_USER_CONFIG ]] && conf+=" $BMINER_USER_CONFIG"
 
-	#pass can also contain %var%
-	#Don't remove until Hive 1 is gone
-	[[ ! -z $EWAL ]] && conf=$(sed "s/%EWAL%/$EWAL/g" <<< $conf) #|| echo "${RED}EWAL not set${NOCOLOR}"
-	[[ ! -z $DWAL ]] && conf=$(sed "s/%DWAL%/$DWAL/g" <<< $conf) #|| echo "${RED}DWAL not set${NOCOLOR}"
-	[[ ! -z $ZWAL ]] && conf=$(sed "s/%ZWAL%/$ZWAL/g" <<< $conf) #|| echo "${RED}ZWAL not set${NOCOLOR}"
-	[[ ! -z $EMAIL ]] && conf=$(sed "s/%EMAIL%/$EMAIL/g" <<< $conf)
-	[[ ! -z $WORKER_NAME ]] && conf=$(sed "s/%WORKER_NAME%/$WORKER_NAME/g" <<< $conf) #|| echo "${RED}WORKER_NAME not set${NOCOLOR}"
+	conf+=" -api 127.0.0.1:${MINER_API_PORT}"
+	#-max-temperature ${CRITICAL_TEMP}"
 
 	echo "$conf" > $MINER_CONFIG
 }
